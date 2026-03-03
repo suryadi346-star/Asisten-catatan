@@ -1,0 +1,12 @@
+# Asisten Shadow - Dependencies
+# Semua library yang digunakan adalah built-in Python 3.6+
+# Tidak memerlukan instalasi tambahan
+
+# Built-in libraries used:
+# - os
+# - json
+# - base64
+# - hashlib
+# - datetime
+# - typing
+# - getpass
