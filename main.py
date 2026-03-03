@@ -1,3 +1,4 @@
+
 """
 ASISTEN SHADOW - Aplikasi Catatan Terenkripsi
 Versi 2.0 - Enhanced Edition
@@ -12,10 +13,13 @@ Fitur:
 """
 
 import os
+import sys
 import json
 import base64
 import hashlib
 import datetime
+import tty
+import termios
 from typing import Dict, List, Optional, Tuple
 
 # ==================== KONSTANTA ====================
@@ -105,14 +109,14 @@ def print_banner():
     print(c("""
   ╔═══════════════════════════════════════════╗
   ║                                           ║
-  ║    ███████╗██╗  ██╗ █████╗ ██████╗       ║
-  ║    ██╔════╝██║  ██║██╔══██╗██╔══██╗      ║
+  ║    ███████╗██╗  ██╗ █████╗ ██████╗        ║
+  ║    ██╔════╝██║  ██║██╔══██╗██╔══██╗       ║
   ║    ███████╗███████║███████║██║  ██║       ║
   ║    ╚════██║██╔══██║██╔══██║██║  ██║       ║
   ║    ███████║██║  ██║██║  ██║██████╔╝       ║
   ║    ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝        ║
   ║                                           ║
-  ║       A S I S T E N   S H A D O W        ║
+  ║       A S I S T E N   S H A D O W         ║
   ║         Catatan Terenkripsi v2.0          ║
   ╚═══════════════════════════════════════════╝""", Color.CYAN, Color.BOLD))
     print()
@@ -144,12 +148,64 @@ def warn(msg):    print(c(f"\n  ⚠ {msg}", Color.YELLOW))
 def info(msg):    print(c(f"\n  ℹ {msg}", Color.CYAN))
 
 
+def _input_password(prompt: str) -> str:
+    """Input password dengan tampilan * per karakter. Fallback ke getpass jika tidak di terminal."""
+    sys.stdout.write(prompt)
+    sys.stdout.flush()
+
+    # Fallback jika bukan terminal interaktif (misal pipe/redirect)
+    if not sys.stdin.isatty():
+        import getpass
+        return getpass.getpass("")
+
+    password_chars = []
+    try:
+        fd = sys.stdin.fileno()
+        old_settings = termios.tcgetattr(fd)
+        tty.setraw(fd)
+        try:
+            while True:
+                ch = sys.stdin.read(1)
+                # Enter
+                if ch in ('\r', '\n'):
+                    sys.stdout.write('\n')
+                    sys.stdout.flush()
+                    break
+                # Backspace / Delete
+                elif ch in ('\x7f', '\x08'):
+                    if password_chars:
+                        password_chars.pop()
+                        # Hapus satu * di layar
+                        sys.stdout.write('\b \b')
+                        sys.stdout.flush()
+                # Ctrl+C
+                elif ch == '\x03':
+                    sys.stdout.write('\n')
+                    raise KeyboardInterrupt
+                # Ctrl+D / EOF
+                elif ch == '\x04':
+                    sys.stdout.write('\n')
+                    break
+                # Karakter normal
+                elif ch >= ' ':
+                    password_chars.append(ch)
+                    sys.stdout.write('*')
+                    sys.stdout.flush()
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+    except (termios.error, AttributeError):
+        # Fallback untuk Windows atau terminal yang tidak support tty
+        import getpass
+        return getpass.getpass("")
+
+    return ''.join(password_chars)
+
+
 def get_input(prompt: str, required: bool = True, password: bool = False) -> str:
     while True:
         try:
             if password:
-                import getpass
-                value = getpass.getpass(c(f"  → {prompt}", Color.WHITE)).strip()
+                value = _input_password(c(f"  → {prompt}", Color.WHITE)).strip()
             else:
                 value = input(c(f"  → {prompt}", Color.WHITE)).strip()
         except EOFError:
@@ -520,7 +576,7 @@ def user_dashboard(username: str):
 
         print(c("""
   ╔═══════════════════════════════════════════╗
-  ║           D A S H B O A R D              ║
+  ║           D A S H B O A R D               ║
   ╚═══════════════════════════════════════════╝""", Color.MAGENTA, Color.BOLD))
 
         print(c(f"\n  👤  Pengguna : {username}", Color.WHITE, Color.BOLD))
